@@ -5,12 +5,16 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 
 import javax.annotation.PostConstruct;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * @author dprasad
@@ -21,6 +25,9 @@ public class DeviceConnectHealthCheckTest {
 
     @Value("${inlets.tests.serial.prefix:IQEMU}")
     private String serialPrefix;
+
+    @Value("${inlets.tests.serial.realdevices:2021Q-30238}")
+    private String realDevices;
 
     @Value("${inlets.tests.hc.enable:true}")
     private boolean enabled;
@@ -37,6 +44,8 @@ public class DeviceConnectHealthCheckTest {
     @Value("${inlets.tests.hc.wait.time:180000}")
     private long waitTime;
 
+    @Value("${inlets.tests.sleep.time:1000}")
+    private long sleepTime;
 
     RestTemplate restTemplate = new RestTemplate();
 
@@ -53,30 +62,48 @@ public class DeviceConnectHealthCheckTest {
 
             int startIndex = (maxDevices / poolSize) * start;
             int lastIndex = (startIndex + maxDevices / poolSize);
-            for (int i = startIndex; i < lastIndex; i++) {
-                DeviceConnectBaseRequest request = new DeviceConnectBaseRequest();
-                request.setDeviceFamily("VSP_SERIES");
-                request.setDeviceModel("VOSS5520");
-                request.setInletsVersion("0.1.0.0");
-                request.setPlatform("VOSS5520");
 
-                String serialNumber = String.format(serialPrefix, i);
-                long st = 0L;
-                String resp = null;
-                try {
-                    st = System.currentTimeMillis();
-                    restTemplate.postForEntity(healthCheckBaseUrl + serialNumber, request, Object.class).toString();
-
-                } catch (Exception e) {
-                    resp = e.getMessage();
-                }
-
-                resp = resp!=null?resp.replaceAll(" ", ""):resp;
-                long et = System.currentTimeMillis();
-                log.debug("resp: " + resp);
-                log.info(serialNumber +"="+ resp + " | " + (et - st));
+            //Handle realDevices
+            //Only execute in the first thread
+            if(start == 0){
+                List<String> realDevicesList = Arrays.stream(realDevices.split(",")).
+                    filter(s -> s.length() >0).
+                    collect(Collectors.toList());
+                for(String serialNumber: realDevicesList)
+                    execute(serialNumber);
 
             }
+
+            for (int i = startIndex; i < lastIndex; i++) {
+
+                String serialNumber = String.format(serialPrefix, i);
+                execute(serialNumber);
+
+            }
+        }
+
+        private void execute(String serialNumber) {
+            DeviceConnectBaseRequest request = new DeviceConnectBaseRequest();
+            request.setDeviceFamily("VSP_SERIES");
+            request.setDeviceModel("VOSS5520");
+            request.setInletsVersion("0.1.0.0");
+            request.setPlatform("VOSS5520");
+            long st = 0L;
+            String resp = null;
+            try {
+                st = System.currentTimeMillis();
+                ResponseEntity<String> response = restTemplate.postForEntity(healthCheckBaseUrl + serialNumber, request, String.class);
+                resp = response.getStatusCode()+"";
+
+            } catch (Exception e) {
+                resp = e.getMessage();
+            }
+
+            resp = resp!=null?resp.replaceAll(" ", ""):resp;
+            long et = System.currentTimeMillis();
+            log.debug("resp: " + resp);
+            log.info(serialNumber +"="+ resp + " | " + (et - st));
+
         }
     }
 
@@ -103,6 +130,9 @@ public class DeviceConnectHealthCheckTest {
                     service.shutdown();
                     service.awaitTermination(waitTime, TimeUnit.MILLISECONDS);
                     System.out.println("completed current iteration, time taken = " + (System.currentTimeMillis() - t1));
+
+                    Thread.sleep(sleepTime);
+
                 }
 
             }
