@@ -15,9 +15,12 @@ import java.net.Socket;
 import java.net.URI;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * @author dprasad
@@ -27,6 +30,9 @@ import java.util.concurrent.TimeUnit;
 public class SshOverInletsTest {
     @Value("${inlets.tests.serial.prefix:IQEMU}")
     private String serialPrefix;
+
+    @Value("${inlets.tests.serial.realdevices:2021Q-30238}")
+    private String realDevices;
 
     @Value("${inlets.tests.ssh.enable:true}")
     private boolean enabled;
@@ -49,8 +55,11 @@ public class SshOverInletsTest {
     @Value("${inlets.tests.ssh.password:guest}")
     private String password;
 
-    @Value("${inlets.tests.ssh.command:cat /etc/hosts; echo \"--Executing ls--\"; ls}")
-    private String command;
+    @Value("${inlets.tests.ssh.commands:cat /etc/hosts; echo \"--Executing ls--\"; ls}")
+    private String commands;
+
+    @Value("${inlets.tests.sleep.time:1000}")
+    private long sleepTime;
 
     class Runner extends Thread {
         int start;
@@ -67,54 +76,66 @@ public class SshOverInletsTest {
 
             int startIndex = (maxDevices / poolSize) * start;
             int lastIndex = (startIndex + maxDevices / poolSize);
+
+            //Handle realDevices
+            //Only execute in the first thread
+            if(start == 0){
+                List<String> realDevicesList = Arrays.stream(realDevices.split(",")).
+                    filter(s -> s.length() >0).
+                    collect(Collectors.toList());
+                for(String serialNumber: realDevicesList)
+                    execute(serialNumber);
+
+            }
+
             for (int i = startIndex; i < lastIndex; i++) {
 
-                OutputStream outputStream;
-
-                long st = 0L;
                 String serialNumber = String.format(serialPrefix , i);
-//                String serialNumber = "IQEMU-000000";
+                execute(serialNumber);
 
-                String resp = null;
-
-                try {
-
-                    uri = new URI(baseUrl);
-                    staticSocket = new Socket(uri.getHost(), uri.getPort());
-                    outputStream = staticSocket.getOutputStream();
-
-                    st = System.currentTimeMillis();
-                    final PrintWriter writer = new PrintWriter(outputStream, true);
-                    writer.println("GET / HTTP/1.1");
-                    writer.println("Host: ssh." + serialNumber);
-                    writer.println("Content-Type: application/json");
-                    writer.println("Connection: Upgrade");
-                    writer.println("Upgrade: tcp");
-
-                    writer.println();
-                    writer.flush();
-
-                    listFolderStructureShell();
-
-
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    resp = e.getMessage();
-                }
-
-                resp = resp != null ? resp.replaceAll(" ", "") : null;
-                long et = System.currentTimeMillis();
-                log.debug("resp: " + resp);
-                log.info(serialNumber +"="+ resp + " | " + (et - st));
-
-                try{
-                    staticSocket.close();
-                }catch (Exception e){
-                    e.printStackTrace();
-                }
             }
         }
 
+        private void execute(String serialNumber){
+            OutputStream outputStream;
+            long st = 0L;
+            String resp = null;
+            try {
+
+                uri = new URI(baseUrl);
+                staticSocket = new Socket(uri.getHost(), uri.getPort());
+                outputStream = staticSocket.getOutputStream();
+
+                st = System.currentTimeMillis();
+                final PrintWriter writer = new PrintWriter(outputStream, true);
+                writer.println("GET / HTTP/1.1");
+                writer.println("Host: ssh." + serialNumber);
+                writer.println("Content-Type: application/json");
+                writer.println("Connection: Upgrade");
+                writer.println("Upgrade: tcp");
+
+                writer.println();
+                writer.flush();
+
+                listFolderStructureShell();
+                resp = "OK";
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                resp = e.getMessage();
+            }
+
+            resp = resp != null ? resp.replaceAll(" ", "") : null;
+            long et = System.currentTimeMillis();
+            log.debug("resp: " + resp);
+            log.info(serialNumber +"="+ resp + " | " + (et - st));
+
+            try{
+                staticSocket.close();
+            }catch (Exception e){
+                e.printStackTrace();
+            }
+        }
         public void listFolderStructureShell() throws Exception {
 
             Session session;
@@ -139,22 +160,24 @@ public class SshOverInletsTest {
             ByteArrayOutputStream responseStream = new ByteArrayOutputStream();
             channel.setOutputStream(responseStream);
 
-            channel.connect(5000);
+            channel.connect(3000);
             while (channel.isConnected() && !channel.isClosed()) {
 
-                String[] commands = command.split(";");
+                String[] commands = SshOverInletsTest.this.commands.split(";");
                 for(String commandStr: commands){
+                    System.out.println("Command="+commandStr);
                     pos.write((commandStr + " \n").getBytes(StandardCharsets.UTF_8));
                     pos.flush();
 
-                    Thread.sleep(1000);
+                    Thread.sleep(2000);
                     System.out.println(responseStream);
                 }
 
-                pos.write("exit \n".getBytes(StandardCharsets.UTF_8));
-                pos.flush();
                 Thread.sleep(2000);
 
+                pos.write("exit \n".getBytes(StandardCharsets.UTF_8));
+                pos.flush();
+                break;
             }
 
             try{
@@ -206,6 +229,8 @@ public class SshOverInletsTest {
                     service.shutdown();
                     service.awaitTermination(waitTime, TimeUnit.MILLISECONDS);
                     System.out.println("completed current iteration, time taken = " + (System.currentTimeMillis() - t1));
+
+                    Thread.sleep(sleepTime);
                 }
 
             }
