@@ -4,10 +4,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 import javax.annotation.PostConstruct;
+import javax.xml.ws.http.HTTPException;
+import java.time.Duration;
 
 /**
  * @author dprasad
@@ -44,22 +48,18 @@ public class NOSSVersionOverInletsTest extends AbstractTest {
             System.out.println("Time taken to build:" + (et1 - st1));
 
             st = System.currentTimeMillis();
-            resp = client.get()
-                .exchange()
-//                    .doOnSuccess(httpResponse -> System.out.println(httpResponse.statusCode()))
-//                    .flatMap(clientResponse -> clientResponse.bo)
+            client.get()
+                .retrieve()
+                .onStatus(HttpStatus::isError, response1 -> Mono.error(new HTTPException(response1.statusCode().value())))
 
-//                        .retrieve()
-//                        .onStatus(HttpStatus::is4xxClientError, response1 -> response1.bodyToMono(String.class).map(Exception::new))
-//                        .onStatus(HttpStatus::is5xxServerError, response1 -> response1.bodyToMono(String.class).map(Exception::new))
-//                        .onStatus(HttpStatus::isError, response1 -> response1.bodyToMono(String.class).map(Exception::new))
-//                        .bodyToMono(String.class)
+                .bodyToMono(String.class)
+                .timeout(Duration.ofSeconds(20))
+                .block();
+            resp = "200";
 
-                .block()
-                .statusCode() + "";
-
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (HTTPException e) {
+            resp = e.getStatusCode()+"";
+        }catch (Exception e) {
             resp = e.getMessage();
         }
 
