@@ -129,6 +129,8 @@ public abstract class AbstractTest {
     @SneakyThrows
     public void logResponse(Logger logger, String resp, long st, String serialNumber) {
         resp = resp != null ? resp.replaceAll(" ", "") : resp;
+        resp = resp != null && resp.length() > 30 ? resp.substring(resp.length() - 29, resp.length() - 1) : resp;
+
         long respTime = System.currentTimeMillis() - st;
         logger.debug("resp: " + resp);
         logger.info(serialNumber + "=" + resp + " | " + respTime);
