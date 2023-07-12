@@ -129,29 +129,27 @@ public abstract class AbstractTest {
     @SneakyThrows
     public void logResponse(Logger logger, String resp, long st, String serialNumber) {
         resp = resp != null ? resp.replaceAll(" ", "") : resp;
-        resp = resp != null && resp.length() > 30 ? resp.substring(resp.length() - 29, resp.length() - 1) : resp;
+        resp = ( resp != null && resp.length()  > 30 ) ? resp.substring(resp.length() - 29, resp.length() - 1) : resp;
 
         long respTime = System.currentTimeMillis() - st;
         logger.debug("resp: " + resp);
         logger.info(serialNumber + "=" + resp + " | " + respTime);
-
-        //Update stats (after every N records) to Redis for ease of access
-        lastStatsUpdate++;
-
         String className = shortNameMap.get(Class.forName((logger.getName())).getSimpleName());
-        Map<String, Long> map = respMap.getOrDefault(className, new HashMap<>());
-        map.put(resp, map.getOrDefault(resp, 0L) + 1);
-        map.put("TOT", map.getOrDefault("TOT", 0L) + 1);
-        map.put("TRT", map.getOrDefault("TRT", 0L) + respTime);
-        map.put("ART", map.get("TRT") / map.get("TOT"));
-        respMap.put(className, map);
 
-        if ((System.currentTimeMillis() - lastStatsUpdate) >= statsInterval) {
-            synchronized (respMap) {
+        synchronized (respMap) {
+
+            Map<String, Long> map = respMap.getOrDefault(className, new HashMap<>());
+            map.put(resp, map.getOrDefault(resp, 0L) + 1);
+            map.put("TOT", map.getOrDefault("TOT", 0L) + 1);
+            map.put("TRT", map.getOrDefault("TRT", 0L) + respTime);
+            map.put("ART", map.get("TRT") / map.get("TOT"));
+            respMap.put(className, map);
+
+            if ((System.currentTimeMillis() - lastStatsUpdate) >= statsInterval) {
                 try {
                     String mapAsString = respMap.toString();
                     redisTemplate.opsForValue().set(INLETS_TESTS_PREFIX + simpleDateFormat.format(new Date()), mapAsString);
-                    System.out.println("-------------------------->" + respMap);
+                    logger.info("Updated Redis ====>" + respMap);
                     lastStatsUpdate = System.currentTimeMillis();
                     respMap.clear();
 
