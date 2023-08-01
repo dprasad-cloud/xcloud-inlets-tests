@@ -7,7 +7,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -41,8 +40,6 @@ public class DeviceConnectHealthCheckWebsocketTest extends AbstractTest {
     @Value("${inlets.tests.hc.ws.host-header:device-connector}")
     private String hostHeader;
 
-    RestTemplate restTemplate = new RestTemplate();
-
     public void execute(String serialNumber) {
         DeviceConnectBaseRequest request = new DeviceConnectBaseRequest();
         request.setDeviceFamily("VSP_SERIES");
@@ -57,7 +54,7 @@ public class DeviceConnectHealthCheckWebsocketTest extends AbstractTest {
 
             WebClient client = WebClient.builder().
                 baseUrl(healthCheckBaseUrl + serialNumber).
-                defaultHeaders(httpHeaders -> httpHeaders.addAll(createHeaders(serialNumber))).
+                defaultHeaders(httpHeaders -> httpHeaders.addAll(createHeaders())).
                 build();
 
             st = System.currentTimeMillis();
@@ -79,7 +76,7 @@ public class DeviceConnectHealthCheckWebsocketTest extends AbstractTest {
 
     }
 
-    private HttpHeaders createHeaders(String sn) {
+    private HttpHeaders createHeaders() {
         HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.HOST, hostHeader);
         headers.add(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
