@@ -68,16 +68,29 @@ public class DeviceConnectHealthCheckWebsocketTest extends AbstractTest {
                 .body(BodyInserters.fromObject(request))
                 .retrieve()
                 .onStatus(HttpStatus::isError, response1 -> Mono.error(new HTTPException(response1.statusCode().value())))
-
                 .bodyToMono(String.class)
+                .subscribe(
+
+                    responseBody -> {
+                        //System.out.println("Response: " + responseBody);
+                    },
+                    error -> {
+                        //System.err.println("Error: " + error.getMessage());
+                    },
+                    () -> {
+                        // Request completed successfully
+                        // Dispose of the WebClient after the request is completed
+                        //webClient.dispose(); ???
+                    }
+                ).dispose();
 //                .timeout(Duration.ofSeconds(20))  -- disable timeout for realistic test.
-                .block();
+//                .block();
             resp = "200";
 
         } catch (Exception e) {
+            log.info("Error...", e);
             resp = e.getMessage();
         }finally {
-
         }
 
         logResponse(log, resp, st, serialNumber);
