@@ -40,14 +40,6 @@ public abstract class AbstractTest {
     @Autowired
     RedisTemplate<String, String> redisTemplate;
 
-    static Map<String,String> shortNameMap = new HashMap<>();
-    static{
-        shortNameMap.put(DeviceConnectHealthCheckTest.class.getSimpleName(),"DHC");
-        shortNameMap.put(NOSSOverInletsTest.class.getSimpleName(),"COI");
-        shortNameMap.put(NOSSVersionOverInletsTest.class.getSimpleName(),"VOI");
-        shortNameMap.put(SshOverInletsTest.class.getSimpleName(),"SSH");
-
-    }
     public void setValuesAndStartTests(org.slf4j.Logger logger, boolean enabled, int poolSize, int maxDevices, long waitTime) {
         this.enabled = enabled;
         this.poolSize = poolSize;
@@ -134,7 +126,7 @@ public abstract class AbstractTest {
         long respTime = System.currentTimeMillis() - st;
         logger.debug("resp: " + resp);
         logger.info(serialNumber + "=" + resp + " | " + respTime);
-        String className = shortNameMap.get(Class.forName((logger.getName())).getSimpleName());
+        String className = getName();
 
         synchronized (respMap) {
 
