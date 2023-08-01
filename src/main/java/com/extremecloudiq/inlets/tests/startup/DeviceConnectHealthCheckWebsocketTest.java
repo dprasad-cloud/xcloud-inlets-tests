@@ -14,6 +14,7 @@ import reactor.core.publisher.Mono;
 import javax.annotation.PostConstruct;
 import javax.xml.ws.http.HTTPException;
 import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * @author dprasad
@@ -64,11 +65,15 @@ public class DeviceConnectHealthCheckWebsocketTest extends AbstractTest {
                 build();
 
             st = System.currentTimeMillis();
-            client.post()
+
+            CountDownLatch cdl = new CountDownLatch(1);
+
+            reactor.core.Disposable disposable = client.post()
                 .body(BodyInserters.fromObject(request))
                 .retrieve()
                 .onStatus(HttpStatus::isError, response1 -> Mono.error(new HTTPException(response1.statusCode().value())))
                 .bodyToMono(String.class)
+                .doOnTerminate(() -> cdl.countDown())
                 .subscribe(
 
                     responseBody -> {
@@ -81,8 +86,12 @@ public class DeviceConnectHealthCheckWebsocketTest extends AbstractTest {
                         // Request completed successfully
                         // Dispose of the WebClient after the request is completed
                         //webClient.dispose(); ???
+
                     }
-                ).dispose();
+                );
+            cdl.await();
+            disposable.dispose();
+
 //                .timeout(Duration.ofSeconds(20))  -- disable timeout for realistic test.
 //                .block();
             resp = "200";
