@@ -162,4 +162,10 @@ public abstract class AbstractTest {
     }
 
     public abstract void execute(String serialNumber);
+
+    /**
+     * Every test has a three letter short code for easy formatting of the stats
+     */
+    public abstract String getName();
+
 }
