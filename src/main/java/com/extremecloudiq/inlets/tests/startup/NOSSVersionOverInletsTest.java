@@ -34,6 +34,11 @@ public class NOSSVersionOverInletsTest extends AbstractTest {
     @Value("${inlets.tests.noss.version.wait.time:180000}")
     private long waitTime;
 
+    @Override
+    public String getName() {
+        return "VOI";
+    }
+
     public void execute(String serialNumber) {
         long st = 0L;
         String resp;

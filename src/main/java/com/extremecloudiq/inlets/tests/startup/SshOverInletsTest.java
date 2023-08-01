@@ -49,6 +49,11 @@ public class SshOverInletsTest extends AbstractTest {
     Socket staticSocket;
     URI uri;
 
+    @Override
+    public String getName() {
+        return "SSH";
+    }
+
     public void execute(String serialNumber) {
         OutputStream outputStream;
         long st = 0L;

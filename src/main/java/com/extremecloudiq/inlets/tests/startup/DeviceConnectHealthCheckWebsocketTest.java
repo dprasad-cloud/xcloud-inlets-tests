@@ -40,6 +40,11 @@ public class DeviceConnectHealthCheckWebsocketTest extends AbstractTest {
     @Value("${inlets.tests.hc.ws.host-header:device-connector}")
     private String hostHeader;
 
+    @Override
+    public String getName() {
+        return "DHW";
+    }
+
     public void execute(String serialNumber) {
         DeviceConnectBaseRequest request = new DeviceConnectBaseRequest();
         request.setDeviceFamily("VSP_SERIES");
@@ -49,10 +54,11 @@ public class DeviceConnectHealthCheckWebsocketTest extends AbstractTest {
 
         long st = 0L;
         String resp;
+        WebClient client;
         try {
             st = System.currentTimeMillis();
 
-            WebClient client = WebClient.builder().
+            client = WebClient.builder().
                 baseUrl(healthCheckBaseUrl + serialNumber).
                 defaultHeaders(httpHeaders -> httpHeaders.addAll(createHeaders())).
                 build();
@@ -64,12 +70,14 @@ public class DeviceConnectHealthCheckWebsocketTest extends AbstractTest {
                 .onStatus(HttpStatus::isError, response1 -> Mono.error(new HTTPException(response1.statusCode().value())))
 
                 .bodyToMono(String.class)
-                .timeout(Duration.ofSeconds(20))
+//                .timeout(Duration.ofSeconds(20))  -- disable timeout for realistic test.
                 .block();
             resp = "200";
 
         } catch (Exception e) {
             resp = e.getMessage();
+        }finally {
+
         }
 
         logResponse(log, resp, st, serialNumber);

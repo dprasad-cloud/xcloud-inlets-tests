@@ -64,6 +64,11 @@ public class DeviceConnectHealthCheckTest extends AbstractTest {
 
     }
 
+    @Override
+    public String getName() {
+        return "DHC";
+    }
+
     @PostConstruct
     public void init() {
         setValuesAndStartTests(log, enabled, poolSize, maxDevices, waitTime);
