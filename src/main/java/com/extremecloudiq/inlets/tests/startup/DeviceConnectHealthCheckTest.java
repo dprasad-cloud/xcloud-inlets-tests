@@ -4,6 +4,8 @@ import com.extremecloudiq.inlets.tests.vo.DeviceConnectBaseRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 
@@ -31,6 +33,9 @@ public class DeviceConnectHealthCheckTest extends AbstractTest {
     @Value("${inlets.tests.hc.wait.time:180000}")
     private long waitTime;
 
+    @Value("${inlets.tests.hc.host-header:device-connector}")
+    private String hostHeader;
+
     RestTemplate restTemplate = new RestTemplate();
 
     public void execute(String serialNumber) {
@@ -39,11 +44,16 @@ public class DeviceConnectHealthCheckTest extends AbstractTest {
         request.setDeviceModel("VOSS5520");
         request.setInletsVersion("0.1.0.0");
         request.setPlatform("VOSS5520");
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Host", hostHeader);
+        HttpEntity requestEntity = new HttpEntity(request, headers);
+
         long st = 0L;
         String resp;
         try {
             st = System.currentTimeMillis();
-            ResponseEntity<String> response = restTemplate.postForEntity(healthCheckBaseUrl + serialNumber, request, String.class);
+            ResponseEntity<String> response = restTemplate.postForEntity(healthCheckBaseUrl + serialNumber, requestEntity, String.class);
             resp = response.getStatusCode() + "";
 
         } catch (Exception e) {
